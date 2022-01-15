@@ -1,7 +1,6 @@
 {
     "name": "on3n3o/extended-route-list",
     "description": "This package extends default command route:list to include docblocks @see @author @version @access @param @return. Provides config file to setup what columns, how, and when to show.",
-    "type": "project",
     "license": "MIT",
     "authors": [
         {
