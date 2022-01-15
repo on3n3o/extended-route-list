@@ -1,0 +1,30 @@
+{
+    "name": "marcin/extended-route-list",
+    "description": "This package extends default command route:list to include docblocks @see @author @version @access @param @return. Provides config file to setup what columns, how, and when to show.",
+    "type": "project",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Marcin Maciejewski",
+            "email": "ulanelectronics@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": "^7.3|^8.0",
+        "symfony/console": "^5.0",
+        "laravel/framework": "^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "On3n3o\\ExtendedRouteList\\": "src"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "On3n3o\\ExtendedRouteList\\ExtendedRouteListServiceProvider"
+            ]
+        }
+    }
+}
