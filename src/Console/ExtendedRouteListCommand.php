@@ -2,65 +2,93 @@
 
 namespace On3n3o\ExtendedRouteList\Console;
 
-class ExtendedRouteListCommand extends \Illuminate\Console\Command
+use Illuminate\Foundation\Console\RouteListCommand as IlluminateRouteListCommand;
+use Illuminate\Routing\Route;
+use Illuminate\Routing\Router;
+use Illuminate\Support\Str;
+
+class ExtendedRouteListCommand extends IlluminateRouteListCommand
 {
     /**
-     * The name and signature of the console command.
+     * The console command name.
      *
      * @var string
      */
-    protected $signature = 'extended-route-list:generate';
+    protected $name = 'route:list';
 
     /**
-     * The console command description.
+     * The table headers for the command.
      *
-     * @var string
+     * @var string[]
      */
-    protected $description = 'Generate a list of all routes';
+    protected $headers = ['Domain', 'Method', 'URI', 'Name', 'Action', 'Middleware', 'Docs'];
 
     /**
-     * Create a new command instance.
+     * The columns to display when using the "compact" flag.
      *
+     * @var string[]
+     */
+    protected $compactColumns = ['method', 'uri', 'action', 'docs'];
+    /**
+     * Create a new route command instance.
+     *
+     * @param  \Illuminate\Routing\Router  $router
      * @return void
      */
-    public function __construct()
+    public function __construct(Router $router)
     {
-        parent::__construct();
+        $this->router = $router;
+        parent::__construct($this->router);
     }
 
     /**
-     * Execute the console command.
+     * Get the route information for a given route.
      *
-     * @return mixed
+     * @param  \Illuminate\Routing\Route  $route
+     * @return array
      */
-    public function handle()
+    protected function getRouteInformation(Route $route)
     {
-        $this->info('Generating route list...');
+        return $this->filterRoute([
+            'domain' => $route->domain(),
+            'method' => implode('|', $route->methods()),
+            'uri' => $route->uri(),
+            'name' => $route->getName(),
+            'action' => Str::afterLast(ltrim($route->getActionName(), '\\'), '\\'),
+            'middleware' => $this->getMiddleware($route),
+            'docs' => $this->getDocs($route),
+        ]);
+    }
 
-        $routes = \Route::getRoutes();
+    protected function getMiddleware($route)
+    {
+        $middleware = parent::getMiddleware($route);
+        $middleware = explode(PHP_EOL, $middleware);
+        $middleware = array_map(function ($item) {
+            return Str::afterLast($item, '\\');
+        }, $middleware);
+        return implode(' ', $middleware) ?: '-';
+    }
 
-        $routeList = [];
-
-        foreach ($routes as $route) {
-            $routeList[] = [
-                'method' => $route->getMethods(),
-                'uri' => $route->getUri(),
-                'name' => $route->getName(),
-                'action' => $route->getActionName(),
-                'middleware' => $route->gatherMiddleware(),
-            ];
+    /**
+     * Get the docs for given route.
+     * @param  \Illuminate\Routing\Route  $route
+     * @return string
+     */
+    protected function getDocs(Route $route)
+    {
+        $className = Str::before($route->getActionName(), '@');
+        $fileName = Str::replace('\\', '/', lcfirst($className));
+        try {
+            $file = file_get_contents(base_path() . '/' . $fileName . '.php');
+        } catch (\Exception $e) {
+            return null;
         }
 
-        $this->info('Route list generated.');
-
-        $this->info('Writing route list to file...');
-
-        $file = fopen(config('extended-route-list.file'), 'w');
-
-        fwrite($file, json_encode($routeList, JSON_PRETTY_PRINT));
-
-        fclose($file);
-
-        $this->info('Route list written to file.');
+        if (Str::contains($file, '@see')) {
+            $doc = Str::words(Str::after($file, '@see '), 1, '');
+            return $doc;
+        }
+        return null;
     }
-} 
+}
