@@ -18,6 +18,8 @@ class ExtendedRouteListServiceProvider extends ServiceProvider
             __DIR__.'/../config/extended-route-list.php' => config_path('extended-route-list.php'),
         ], 'config');
 
+        
+
         // $this->commands([
         //     ExtendedRouteListCommand::class,
         // ]);

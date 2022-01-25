@@ -6,6 +6,7 @@ use Illuminate\Foundation\Console\RouteListCommand as IlluminateRouteListCommand
 use Illuminate\Routing\Route;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Str;
+use Symfony\Component\Console\Input\InputOption;
 
 class ExtendedRouteListCommand extends IlluminateRouteListCommand
 {
@@ -21,14 +22,43 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
      *
      * @var string[]
      */
-    protected $headers = ['Domain', 'Method', 'URI', 'Name', 'Action', 'Middleware', 'Docs'];
+    protected $headers;
 
     /**
      * The columns to display when using the "compact" flag.
      *
      * @var string[]
      */
-    protected $compactColumns = ['method', 'uri', 'action', 'docs'];
+    protected $compactColumns;
+
+    /**
+     * The columns to display when using no flag.
+     *
+     * @var string[]
+     */
+    protected $normalColumns;
+
+    /**
+     * The columns to display when using "all-columns" flag.
+     *
+     * @var string[]
+     */
+    protected $allColumns;
+
+    /**
+     * The setting how to format the name of the middleware.
+     * 
+     * @var string
+     */
+    protected $middlewareFormat;
+
+    /**
+     * The middleware setting how to format line endings.
+     * 
+     * @var string
+     */
+    protected $middlewareLinestyle;
+
     /**
      * Create a new route command instance.
      *
@@ -38,7 +68,40 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
     public function __construct(Router $router)
     {
         $this->router = $router;
+        $this->headers = config('extended-route-list.columns');
+        $this->compactColumns = array_map('strtolower', config('extended-route-list.compact_columns'));
+        $this->normalColumns = array_map('strtolower', config('extended-route-list.normal_columns'));
+        $this->allColumns = array_map('strtolower', config('extended-route-list.all_columns'));
+        
+        $this->middlewareFormat = config('extended-route-list.middleware.format');
+        $this->middlewareLinestyle = config('extended-route-list.middleware.linestyle');
         parent::__construct($this->router);
+    }
+
+    /**
+     * Get the column names to show (lowercase table headers).
+     *
+     * @return array
+     */
+    protected function getColumns()
+    {
+        $availableColumns = array_map('strtolower', $this->headers);
+
+        if ($this->option('compact')) {
+            return array_intersect($availableColumns, $this->compactColumns);
+        }
+
+        if ($columns = $this->option('columns')) {
+            return array_intersect($availableColumns, $this->parseColumns($columns));
+        }
+
+        if ($this->option('all-columns')) {
+            return array_intersect($availableColumns, $this->allColumns);
+        }
+
+        return array_intersect($availableColumns, $this->normalColumns);
+
+        return $availableColumns;
     }
 
     /**
@@ -49,6 +112,8 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
      */
     protected function getRouteInformation(Route $route)
     {
+        $file = $this->getClassFile($route);
+        $docBlock = $this->getDocBlock($file);
         return $this->filterRoute([
             'domain' => $route->domain(),
             'method' => implode('|', $route->methods()),
@@ -56,7 +121,27 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
             'name' => $route->getName(),
             'action' => Str::afterLast(ltrim($route->getActionName(), '\\'), '\\'),
             'middleware' => $this->getMiddleware($route),
-            'docs' => $this->getDocs($route),
+            'package' => $this->findInDocBlock($docBlock, '@package'),
+            'author' => $this->findInDocBlock($docBlock, '@author'),
+            'version' => $this->findInDocBlock($docBlock, '@version'),
+            'since' => $this->findInDocBlock($docBlock, '@since'),
+            'access' => $this->findInDocBlock($docBlock, '@access'),
+            'link' => $this->findInDocBlock($docBlock, '@link'),
+            'see' => $this->findInDocBlock($docBlock, '@see'),
+            'example' => $this->findInDocBlock($docBlock, '@example'),
+            'todo' => $this->findInDocBlock($docBlock, ['@todo', '@fixme']),
+            /** The deprecated should return true or false */
+            'deprecated' => $this->findInDocBlock($docBlock, '@deprecated'),
+            'uses' => $this->findInDocBlock($docBlock, '@uses'),
+            'param' => $this->findInDocBlock($docBlock, '@param'),
+            'return' => $this->findInDocBlock($docBlock, '@return'),
+            'throws' => $this->findInDocBlock($docBlock, '@throws'),
+            // This inheritdoc shoud be implemented as logic in the future
+            // and not as a string in the docblock
+            // when this tag is present in the docblock it should be
+            // inherited from the parent docblock
+            '@inheritdoc' => $this->findInDocBlock($docBlock, '@inheritdoc'),
+            'license' => $this->findInDocBlock($docBlock, '@license'),
         ]);
     }
 
@@ -64,31 +149,74 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
     {
         $middleware = parent::getMiddleware($route);
         $middleware = explode(PHP_EOL, $middleware);
-        $middleware = array_map(function ($item) {
-            return Str::afterLast($item, '\\');
-        }, $middleware);
-        return implode(' ', $middleware) ?: '-';
+        if ($this->middlewareFormat == 'short') {
+            $middleware = array_map(function ($item) {
+                return Str::afterLast($item, '\\');
+            }, $middleware);
+        }
+
+        return implode($this->middlewareLinestyle == 'multi' ? PHP_EOL : ' ', $middleware) ?: '-';
     }
 
     /**
-     * Get the docs for given route.
-     * @param  \Illuminate\Routing\Route  $route
-     * @return string
+     * Get the console command options.
+     *
+     * @return array
      */
-    protected function getDocs(Route $route)
+    protected function getOptions()
+    {
+        return array_merge(parent::getOptions(), [
+            ['all-columns', 'a', InputOption::VALUE_NONE, 'Show all columns'],
+        ]);
+    }
+
+    protected function getClassFile(Route $route)
     {
         $className = Str::before($route->getActionName(), '@');
         $fileName = Str::replace('\\', '/', lcfirst($className));
         try {
-            $file = file_get_contents(base_path() . '/' . $fileName . '.php');
+            return file_get_contents(base_path() . '/' . $fileName . '.php');
         } catch (\Exception $e) {
             return null;
         }
+    }
 
-        if (Str::contains($file, '@see')) {
-            $doc = Str::words(Str::after($file, '@see '), 1, '');
-            return $doc;
+    protected function getDocBlock($file)
+    {
+        $lines = explode(PHP_EOL, $file);
+        $doc = [];
+        $start = false;
+        foreach ($lines as $line) {
+            if (Str::contains($line, '/*')) {
+                $start = true;
+            }
+            if ($start) {
+                $doc[] = $line;
+            }
+            if (Str::contains($line, '*/')) {
+                break;
+            }
         }
-        return null;
+        return $doc;
+    }
+
+    protected function findInDocBlock($docBlockLines, $tags)
+    {
+        $finds = [];
+        foreach ($docBlockLines as $line) {
+            if (Str::contains($line, $tags)) {
+                if(is_array($tags)){
+                    foreach ($tags as $tag) {
+                        if (Str::contains($line, $tag)) {
+                            $finds[] = trim(Str::after($line, $tag));
+                        }
+                    }
+                }else{
+                    $finds[] = trim(Str::after($line, $tags));
+                }
+            }
+        }
+
+        return implode(PHP_EOL, $finds);
     }
 }
