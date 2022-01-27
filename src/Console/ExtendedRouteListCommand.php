@@ -114,6 +114,11 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
     {
         $file = $this->getClassFile($route);
         $docBlock = $this->getDocBlock($file);
+        $functionName = Str::after($route->getActionName(), '@');
+        $functionDocBlock = $this->getFunctionDocBlock($file, $functionName);
+
+        info($functionDocBlock);
+
         return $this->filterRoute([
             'domain' => $route->domain(),
             'method' => implode('|', $route->methods()),
@@ -196,7 +201,34 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
             if (Str::contains($line, '*/')) {
                 break;
             }
+            // Search only for the first docblock before the class definition
+            if (Str::contains($line, 'class')) {
+                break;
+            }
         }
+        return $doc;
+    }
+
+    protected function getFunctionDocBlock($file, $functionName)
+    {
+        $lines = explode(PHP_EOL, $file);
+        $doc = [];
+        $start = false;
+        $lines = array_reverse($lines);
+        
+        foreach ($lines as $line) {
+            if (Str::contains($line, 'function ' . $functionName . '(')) {
+                info('Found function ' . $functionName);
+                $start = true;
+            }
+            if ($start) {
+                $doc[] = $line;
+            }
+            if (Str::contains($line, '/**') && $start) {
+                break;
+            }
+        }
+        $doc = array_reverse($doc);
         return $doc;
     }
 
