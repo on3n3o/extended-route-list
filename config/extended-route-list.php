@@ -1,9 +1,12 @@
 <?php
 
 return [
+    'action' => [
+        'format' => env('EXT_ROUTE_LIST_ACTION_FORMAT', 'short'), // short|full
+    ],
     'middleware' => [
-        'format' => 'short', // short|full
-        'linestyle' => 'single', // multi, single
+        'format' => env('EXT_ROUTE_LIST_MIDDLEWARE_FORMAT', 'short'), // short|full
+        'linestyle' => env('EXT_ROUTE_LIST_MIDDLEWARE_LINESTYLE', 'single'), // multi|single
     ],
     'columns' => [
         'Domain',
@@ -12,7 +15,6 @@ return [
         'Name',
         'Action',
         'Middleware',
-
         'Package',
         'Author',
         'Version',
@@ -21,7 +23,6 @@ return [
         'Link',
         'See',
         'Example',
-
         'Todo', // and Fixme
         'Deprecated',
         'Uses',
@@ -36,25 +37,7 @@ return [
         'Uri',
         'Action',
         'Middleware',
-
-        // 'Package',
-        // 'Author',
-        // 'Version',
-        // 'Since',
-        // 'Access',
-        // 'Link',
-        // 'See',
-        // 'Example',
-
-        // 'Todo', // and Fixme
-        // 'Deprecated',
-        // 'Uses',
-        // 'Param',
-        // 'Return',
-        // 'Throws',
-        // '@inheritdoc', // this should be a logic that loads this information from implements
-        // 'License',
-
+        'See',
     ],
     'normal_columns' => [
         'Domain',
@@ -65,7 +48,6 @@ return [
         'Middleware',
         'See',
     ],
-
     'all_columns' => [
         'Domain',
         'Method',
@@ -73,7 +55,6 @@ return [
         'Name',
         'Action',
         'Middleware',
-
         'Package',
         'Author',
         'Version',
@@ -82,14 +63,13 @@ return [
         'Link',
         'See',
         'Example',
-
         'Todo', // and Fixme
         'Deprecated',
         'Uses',
         'Param',
         'Return',
         'Throws',
-        '@inheritdoc', // this should be a logic that loads this information from implements
+        '@inheritdoc', 
         'License',
     ],
     

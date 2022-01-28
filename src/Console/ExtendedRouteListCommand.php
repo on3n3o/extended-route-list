@@ -117,8 +117,6 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
         $functionName = Str::after($route->getActionName(), '@');
         $functionDocBlock = $this->getFunctionDocBlock($file, $functionName);
 
-        info($functionDocBlock);
-
         return $this->filterRoute([
             'domain' => $route->domain(),
             'method' => implode('|', $route->methods()),
@@ -126,27 +124,27 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
             'name' => $route->getName(),
             'action' => Str::afterLast(ltrim($route->getActionName(), '\\'), '\\'),
             'middleware' => $this->getMiddleware($route),
-            'package' => $this->findInDocBlock($docBlock, '@package'),
-            'author' => $this->findInDocBlock($docBlock, '@author'),
-            'version' => $this->findInDocBlock($docBlock, '@version'),
-            'since' => $this->findInDocBlock($docBlock, '@since'),
-            'access' => $this->findInDocBlock($docBlock, '@access'),
-            'link' => $this->findInDocBlock($docBlock, '@link'),
-            'see' => $this->findInDocBlock($docBlock, '@see'),
-            'example' => $this->findInDocBlock($docBlock, '@example'),
-            'todo' => $this->findInDocBlock($docBlock, ['@todo', '@fixme']),
+            'package' => $this->findInDocBlocks('@package', $docBlock, $functionDocBlock),
+            'author' => $this->findInDocBlocks('@author', $docBlock, $functionDocBlock),
+            'version' => $this->findInDocBlocks('@version', $docBlock, $functionDocBlock),
+            'since' => $this->findInDocBlocks('@since', $docBlock, $functionDocBlock),
+            'access' => $this->findInDocBlocks('@access', $docBlock, $functionDocBlock),
+            'link' => $this->findInDocBlocks('@link', $docBlock, $functionDocBlock),
+            'see' => $this->findInDocBlocks('@see', $docBlock, $functionDocBlock),
+            'example' => $this->findInDocBlocks('@example', $docBlock, $functionDocBlock),
+            'todo' => $this->findInDocBlocks(['@todo', '@fixme'], $docBlock, $functionDocBlock),
             /** The deprecated should return true or false */
-            'deprecated' => $this->findInDocBlock($docBlock, '@deprecated'),
-            'uses' => $this->findInDocBlock($docBlock, '@uses'),
-            'param' => $this->findInDocBlock($docBlock, '@param'),
-            'return' => $this->findInDocBlock($docBlock, '@return'),
-            'throws' => $this->findInDocBlock($docBlock, '@throws'),
+            'deprecated' => $this->findInDocBlocks('@deprecated', $docBlock, $functionDocBlock),
+            'uses' => $this->findInDocBlocks('@uses', $docBlock, $functionDocBlock),
+            'param' => $this->findInDocBlocks('@param', $docBlock, $functionDocBlock),
+            'return' => $this->findInDocBlocks('@return', $docBlock, $functionDocBlock),
+            'throws' => $this->findInDocBlocks('@throws', $docBlock, $functionDocBlock),
             // This inheritdoc shoud be implemented as logic in the future
             // and not as a string in the docblock
             // when this tag is present in the docblock it should be
             // inherited from the parent docblock
-            '@inheritdoc' => $this->findInDocBlock($docBlock, '@inheritdoc'),
-            'license' => $this->findInDocBlock($docBlock, '@license'),
+            '@inheritdoc' => $this->findInDocBlocks('@inheritdoc', $docBlock, $functionDocBlock),
+            'license' => $this->findInDocBlocks('@license', $docBlock, $functionDocBlock),
         ]);
     }
 
@@ -218,7 +216,7 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
         
         foreach ($lines as $line) {
             if (Str::contains($line, 'function ' . $functionName . '(')) {
-                info('Found function ' . $functionName);
+                // info('Found function ' . $functionName);
                 $start = true;
             }
             if ($start) {
@@ -249,6 +247,15 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
             }
         }
 
+        return $finds;
+    }
+
+    protected function findInDocBlocks($tags, ...$docBlocks)
+    {
+        $finds = [];
+        foreach ($docBlocks as $docBlock) {
+            $finds = array_merge($finds, $this->findInDocBlock($docBlock, $tags));
+        }
         return implode(PHP_EOL, $finds);
     }
 }
