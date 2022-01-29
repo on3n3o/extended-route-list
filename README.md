@@ -127,3 +127,42 @@ class HomeController extends Controller
         //
     }
 ```
+
+## Setting up unusual docblock signatures
+
+To do this you need to publish config and change inside `config/extended-route-list.php` where 'signature' is your new docblock signature.
+
+```php
+
+return [
+    ...
+    'casts' => [
+        ...
+        'signature' => [
+            'column_name' => 'signature',
+            'tags' => ['@signature1', '@sig1'],
+            'linestyle' => 'single'
+        ]
+    ],
+    ...
+    'columns' => [
+        ...
+        'Signature',
+    ],
+    'normal_columns' => [
+        ...
+        'Signature',
+    ],
+    // if you want to show in compact columns add whats below
+    'compact_columns' => [
+        ...
+        'Signature',
+    ],
+    // if you want to show in all columns add whats below
+    'all_columns' => [
+        ...
+        'Signature',
+    ]
+
+];
+```
