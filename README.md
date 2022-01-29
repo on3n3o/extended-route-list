@@ -67,6 +67,8 @@ Or you can use `.env` variables
 EXT_ROUTE_LIST_ACTION_FORMAT="short" # short or full
 EXT_ROUTE_LIST_MIDDLEWARE_FORMAT="short" # short or full
 EXT_ROUTE_LIST_MIDDLEWARE_LINESTYLE="single" # single or multi
+EXT_ROUTE_LIST_JSON_DROP_COLUMN_IF_EMPTY=true # if used `--json` in command and column returns null or [] then drop it form output
+EXT_ROUTE_LIST_JSON_OPTIONS=192 #CHECK THIS IF SHOULD BE INTEGER VALUE https://www.php.net/manual/en/json.constants.php
 ```
 
 > If you want to show all columns you can use `--all-columns` or `-a`

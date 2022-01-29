@@ -46,6 +46,13 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
     protected $allColumns;
 
     /**
+     * The casts between column name and tags.
+     *
+     * @var string[]
+     */
+    protected $casts;
+
+    /**
      * The setting how to format the name of the middleware.
      * 
      * @var string
@@ -60,6 +67,22 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
     protected $middlewareLinestyle;
 
     /**
+     * The Json Option for formatting --json output.
+     * 
+     * @see https://www.php.net/manual/en/json.constants.php
+     * 
+     * @var int
+     */
+    protected $jsonOptions;
+
+    /**
+     * The setting to drop column if empty in json output.
+     * 
+     * @var string
+     */
+    protected $jsonDropIfEmpty;
+
+    /**
      * Create a new route command instance.
      *
      * @param  \Illuminate\Routing\Router  $router
@@ -72,9 +95,15 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
         $this->compactColumns = array_map('strtolower', config('extended-route-list.compact_columns'));
         $this->normalColumns = array_map('strtolower', config('extended-route-list.normal_columns'));
         $this->allColumns = array_map('strtolower', config('extended-route-list.all_columns'));
+        $this->casts = config('extended-route-list.casts');
         
-        $this->middlewareFormat = config('extended-route-list.middleware.format');
-        $this->middlewareLinestyle = config('extended-route-list.middleware.linestyle');
+        $this->middlewareFormat = config('extended-route-list.config.middleware.format');
+        $this->middlewareLinestyle = config('extended-route-list.config.middleware.linestyle');
+        $this->actionFormat = config('extended-route-list.config.action.format');
+
+        $this->jsonOptions = config('extended-route-list.config.json.options');
+        $this->jsonDropIfEmpty = config('extended-route-list.config.json.drop_column_if_empty');
+
         parent::__construct($this->router);
     }
 
@@ -116,36 +145,20 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
         $docBlock = $this->getDocBlock($file);
         $functionName = Str::after($route->getActionName(), '@');
         $functionDocBlock = $this->getFunctionDocBlock($file, $functionName);
+        $finds = [];
 
-        return $this->filterRoute([
+        foreach($this->casts as $cast){
+            $finds[$cast['column_name']] = $this->findInDocBlocks($cast['tags'], $docBlock, $functionDocBlock);
+        }
+
+        return $this->filterRoute(array_merge([
             'domain' => $route->domain(),
             'method' => implode('|', $route->methods()),
             'uri' => $route->uri(),
             'name' => $route->getName(),
-            'action' => Str::afterLast(ltrim($route->getActionName(), '\\'), '\\'),
+            'action' => $this->actionFormat == 'full' ? $route->getActionName() : Str::afterLast(ltrim($route->getActionName(), '\\'), '\\'),
             'middleware' => $this->getMiddleware($route),
-            'package' => $this->findInDocBlocks('@package', $docBlock, $functionDocBlock),
-            'author' => $this->findInDocBlocks('@author', $docBlock, $functionDocBlock),
-            'version' => $this->findInDocBlocks('@version', $docBlock, $functionDocBlock),
-            'since' => $this->findInDocBlocks('@since', $docBlock, $functionDocBlock),
-            'access' => $this->findInDocBlocks('@access', $docBlock, $functionDocBlock),
-            'link' => $this->findInDocBlocks('@link', $docBlock, $functionDocBlock),
-            'see' => $this->findInDocBlocks('@see', $docBlock, $functionDocBlock),
-            'example' => $this->findInDocBlocks('@example', $docBlock, $functionDocBlock),
-            'todo' => $this->findInDocBlocks(['@todo', '@fixme'], $docBlock, $functionDocBlock),
-            /** The deprecated should return true or false */
-            'deprecated' => $this->findInDocBlocks('@deprecated', $docBlock, $functionDocBlock),
-            'uses' => $this->findInDocBlocks('@uses', $docBlock, $functionDocBlock),
-            'param' => $this->findInDocBlocks('@param', $docBlock, $functionDocBlock),
-            'return' => $this->findInDocBlocks('@return', $docBlock, $functionDocBlock),
-            'throws' => $this->findInDocBlocks('@throws', $docBlock, $functionDocBlock),
-            // This inheritdoc shoud be implemented as logic in the future
-            // and not as a string in the docblock
-            // when this tag is present in the docblock it should be
-            // inherited from the parent docblock
-            '@inheritdoc' => $this->findInDocBlocks('@inheritdoc', $docBlock, $functionDocBlock),
-            'license' => $this->findInDocBlocks('@license', $docBlock, $functionDocBlock),
-        ]);
+        ], $finds));
     }
 
     protected function getMiddleware($route)
@@ -256,6 +269,36 @@ class ExtendedRouteListCommand extends IlluminateRouteListCommand
         foreach ($docBlocks as $docBlock) {
             $finds = array_merge($finds, $this->findInDocBlock($docBlock, $tags));
         }
+        if(empty($finds)){
+            return null;
+        }
         return implode(PHP_EOL, $finds);
+    }
+
+    /**
+     * Convert the given routes to JSON.
+     *
+     * @param  array  $routes
+     * @return string
+     */
+    protected function asJson(array $routes)
+    {
+        return collect($routes)
+            ->map(function ($route) {
+                
+                $route['middleware'] = empty($route['middleware']) ? [] : explode("\n", $route['middleware']);
+                foreach($this->casts as $cast){
+                    if($cast['linestyle'] == 'multi'){
+                        $route[$cast['column_name']] = empty($route[$cast['column_name']]) ? [] : explode("\n", $route[$cast['column_name']]);
+                    }
+                }
+
+                if($this->jsonDropIfEmpty){
+                    $route = array_filter($route);
+                }
+                return $route;
+            })
+            ->values()
+            ->toJson($this->jsonOptions);
     }
 }
