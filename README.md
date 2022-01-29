@@ -74,6 +74,9 @@ EXT_ROUTE_LIST_JSON_OPTIONS=192 #CHECK THIS IF SHOULD BE INTEGER VALUE https://w
 > If you want to show all columns you can use `--all-columns` or `-a`
 
 > If you want to show compact columns you can use `--compact` or `-c`
+
+> If you need to export to json use `--json`
+
 ## Customization of columns
 
 To customize your column layout or wich should when be displayed you NEED to publish config.
@@ -108,13 +111,18 @@ class HomeController extends Controller
     /**
      * Display a listing of the resource.
      *
+     * @uses auth()->user()
      * @see https://laravel.com/docs/5.4/controllers#method-index
      * @since v.1.0
      * @access public
      * 
+     * @param \Illuminate\Http\Request
+     * 
      * @return \Illuminate\Http\Response
+     * 
+     * @throws \Exception
      */
-    public function index()
+    public function index(Request $request)
     {
         //
     }
