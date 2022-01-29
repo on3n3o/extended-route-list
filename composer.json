@@ -10,8 +10,13 @@
     ],
     "keywords": [
         "laravel",
-        "route:list",
-        "route:list:extended"
+        "laravel route list",
+        "laravel route list docblock",
+        "laravel route list extended",
+        "laravel route list extended command",
+        "laravel route list extended command json",
+        "laravel route list extended command json output",
+        "laravel route list extended command json output docblocks"
     ],
     "minimum-stability": "dev",
     "require": {
